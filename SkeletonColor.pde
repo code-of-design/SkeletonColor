@@ -79,6 +79,7 @@ void draw() {
       KJoint[] joints = skeleton[i].getJoints();
 
       // color col  = getIndexColor(i);
+      /*
       color col = color(0,0,255);
       fill(col);
       stroke(col);
@@ -87,6 +88,7 @@ void draw() {
       //draw different color for each hand state
       drawHandState(joints[KinectPV2.JointType_HandRight]);
       drawHandState(joints[KinectPV2.JointType_HandLeft]);
+      */
 
       // 拍手.
       drawHandDist(joints[KinectPV2.JointType_HandRight], joints[KinectPV2.JointType_HandLeft]);
@@ -292,13 +294,15 @@ void drawHandDist(KJoint jointR, KJoint jointL){
   hand_dist = PVector.dist(r, l);
 
   // 手の距離を描画する.
+  /*
   fill(0,0,255);
   stroke(0,0,255);
   strokeWeight(3);
   line(r.x, r.y, l.x, l.y);
+  */
 
   // 拍手の判定をする.
-  if(hand_dist <= dist_th ){
+  if(hand_dist <= dist_th && int(time)%3 == 0){
     clap = true;
   }
   else{
