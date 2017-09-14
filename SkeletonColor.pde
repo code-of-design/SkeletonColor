@@ -21,126 +21,141 @@ Copyright (C) 2014  Thomas Sanchez Lengeling.
  THE SOFTWARE.
  */
 
+import processing.opengl.*;
+
 import KinectPV2.KJoint;
 import KinectPV2.*;
 
-KinectPV2 kinect;
+KinectPV2 kinect; // Kinectクラス.
 
-Skeleton [] skeleton;
+Skeleton [] skeleton; // スケルトン配列.
 
-float time = 0; // 時間.
-float time_bg = 0; // バックグラウンド時間.
-float time_begin = 0; // 開始時間.
-float time_end = 0; // 終了時間.
+int time = 0; // 時間.
+boolean isTimer = false;
+int begin_time = 0;
+int count = 0; // カウント.
+int COUNT_RATE = 1000; // カウントレート.
 
-float time321 = 4; // 321カウント.
+int FRAME_RATE = 60; // フレームレート.
+float DISPLAY_PADDING = 100;
 
-int state = 0; // 0: 待機, 1: 321カウント, 2: 稼働, 4: 終了
-
-boolean clap = false; // 拍手判定.
 PVector r, l; // 手ベクトル.
-float hand_dist = 0; // 手の距離.
+float hand_dist = 0.0; // 手の距離.
+float CLAP_TH = 50; // 拍手判定閾値.
 
 // Font.
 PFont noto_sans;
 
 // Color.
 color pink = color(247, 202, 201); // PANTONE ROSE QUARTZ.
-color blue = color(146, 168, 209); //PANTONE SERENITY.
+color blue = color(146, 168, 209); // PANTONE SERENITY.
 
 void setup() {
-  size(1920, 1080, P3D);
+  size(1920, 1080, OPENGL);
+  // size(1920*2, 1080*2, P3D);
 
-  frameRate(30);
+  frameRate(FRAME_RATE); // フレームレート.
 
-  // Font.
+  // Fontを初期化する.
   noto_sans = createFont("Noto Sans CJK JP", 72, true);
   textFont(noto_sans);
 
-  kinect = new KinectPV2(this);
+  kinect = new KinectPV2(this); // Kinectクラスを生成する.
 
   kinect.enableSkeleton(true);
   kinect.enableSkeletonColorMap(true);
   kinect.enableColorImg(true);
 
-  kinect.init();
+  kinect.init(); // Kinectを初期化する.
 }
 
 void draw() {
   background(0);
 
+  // 時間.
+  time = (int)millis()/COUNT_RATE;
+
   image(kinect.getColorImage(), 0, 0, width, height);
 
   skeleton =  kinect.getSkeletonColorMap();
 
-  //individual JOINTS
+  // individual JOINTS
   for (int i = 0; i < skeleton.length; i++) {
     if (skeleton[i].isTracked()) {
       KJoint[] joints = skeleton[i].getJoints();
 
-      // color col  = getIndexColor(i);
       /*
       color col = color(0,0,255);
       fill(col);
       stroke(col);
       drawBody(joints);
-
       //draw different color for each hand state
       drawHandState(joints[KinectPV2.JointType_HandRight]);
       drawHandState(joints[KinectPV2.JointType_HandLeft]);
       */
 
-      // 拍手.
+      // 手の距離を描写する.
       drawHandDist(joints[KinectPV2.JointType_HandRight], joints[KinectPV2.JointType_HandLeft]);
     }
   }
 
-  // Kinectメタ情報.
-  fill(255, 0, 0);
-  // text(int(frameRate), 100, 100);
+  // Kinectメタ情報を描画する.
+  // カウント.
+  if(isTimer){
+    count = time-begin_time;
+  }
+  fill(0,0,255);
+  textSize(100);
+  text("COUNT", DISPLAY_PADDING, DISPLAY_PADDING);
+  textSize(300);
+  text(count, DISPLAY_PADDING, DISPLAY_PADDING+300);
+}
 
-  // 時間を描画する.
-  // time_bg = millis();
+// 手の距離を描画する.
+void drawHandDist(KJoint jointR, KJoint jointL){
+  r = new PVector(jointR.getX(), jointR.getY()); // 右手ベクトル.
+  l = new PVector(jointL.getX(), jointL.getY()); // 左手ベクトル.
 
-  if(state == 1){ // 321カウント.
-    fill(255, 255, 255);
+  // 手の距離を測定する.
+  hand_dist = PVector.dist(r, l);
+
+  // 手の距離を描画する.
+  fill(0,0,255);
+  stroke(0,0,255);
+  strokeWeight(3);
+  textSize(50);
+  text(hand_dist, (r.x-l.x)/2+l.x-50, (r.y-l.y)/2+l.y-50);
+  line(r.x, r.y, l.x, l.y);
+  noFill();
+  ellipse(r.x, r.y, 70, 70);
+  ellipse(l.x, l.y, 70, 70);
+
+  // 拍手の判定をする.
+  if(hand_dist <= CLAP_TH && count%3 == 0){
+    fill(0,0,255);
     textSize(200);
-    textAlign(CENTER);
-
-    if(int(time321) == 0){
-      text("スタート！", width/2, 200);
-      state = 2;
-    }
-    else if(int(time321) != 4){
-      text(int(time321), width/2, 200);
-    }
-
-    time321 -= 1/frameRate*0.9;
+    text("GOOD", r.x, r.y);
   }
+}
 
-  if(state == 2){ // 稼働.
-    fill(255, 255, 255);
-    textSize(200);
-    textAlign(CENTER);
+// 足の位置を描画する.
+void drawAnklePosition(KJoint joint) {
+  noStroke();
+  pushMatrix();
+  translate(joint.getX(), joint.getY(), joint.getZ());
+  // ellipse(0, 0, 70, 70);
+  textSize(60);
+  text(joint.getX(),0,-180);
+  text(joint.getY(),0,-120);
+  text(int(joint.getZ()),0,-60);
+  println(joint.getX(), joint.getY(), joint.getZ());
+  popMatrix();
+}
 
-    if(int(time) == 0){
-      text("スタート！", width/2, 200);
-    }
-    else{
-      text(int(time), width/2, 200);
-    }
-
-    time += 1/frameRate*0.9;
-  }
-
-  // 効果を描画する.
-  // 拍手.
-  if(clap == true){
-    fill(255,0,0);
-    textSize(250);
-    textAlign(LEFT);
-    text("Good!", 50, height/2);
-  }
+// カウントを開始する.
+void mouseClicked() {
+  isTimer = true;
+  begin_time = time; // 開始時間の取得.
 }
 
 //use different color for each skeleton tracked
@@ -162,7 +177,7 @@ color getIndexColor(int index) {
   return col;
 }
 
-//DRAW BODY
+// DRAW BODY
 void drawBody(KJoint[] joints) {
   drawBone(joints, KinectPV2.JointType_Head, KinectPV2.JointType_Neck);
   drawBone(joints, KinectPV2.JointType_Neck, KinectPV2.JointType_SpineShoulder);
@@ -234,20 +249,6 @@ void drawHandState(KJoint joint) {
   // println(joint.getX(), joint.getY(), joint.getZ());
 }
 
-// 足の位置を描画する.
-void drawAnklePosition(KJoint joint) {
-  noStroke();
-  pushMatrix();
-  translate(joint.getX(), joint.getY(), joint.getZ());
-  // ellipse(0, 0, 70, 70);
-  textSize(60);
-  text(joint.getX(),0,-180);
-  text(joint.getY(),0,-120);
-  text(int(joint.getZ()),0,-60);
-  println(joint.getX(), joint.getY(), joint.getZ());
-  popMatrix();
-}
-
 /*
 Different hand state
  KinectPV2.HandState_Open
@@ -269,43 +270,5 @@ void handState(int handState) {
   case KinectPV2.HandState_NotTracked:
     fill(255, 255, 255);
     break;
-  }
-}
-
-void mouseClicked(){
-  if(state == 0){ // 待機.
-    // time_begin = time_bg;
-    // time_end = time_begin + 60;
-    state = 1; // 321カウント.
-  }
-
-  println("State: "+state);
-  // println("TimeBegin: "+time_begin);
-  // println("TimeEnd: "+time_end);
-}
-
-// 手の距離を描画する.
-void drawHandDist(KJoint jointR, KJoint jointL){
-  r = new PVector(jointR.getX(), jointR.getY()); // 右手ベクトル.
-  l = new PVector(jointL.getX(), jointL.getY()); // 左手ベクトル.
-  float dist_th = 50; // 閾値.
-
-  // 手の距離を測定する.
-  hand_dist = PVector.dist(r, l);
-
-  // 手の距離を描画する.
-  /*
-  fill(0,0,255);
-  stroke(0,0,255);
-  strokeWeight(3);
-  line(r.x, r.y, l.x, l.y);
-  */
-
-  // 拍手の判定をする.
-  if(hand_dist <= dist_th && int(time)%3 == 0){
-    clap = true;
-  }
-  else{
-    clap = false;
   }
 }
